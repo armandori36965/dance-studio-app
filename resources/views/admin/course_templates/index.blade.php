@@ -30,13 +30,18 @@
                     <th scope="row">{{ $template->id }}</th>
                     <td>{{ $template->name }}</td>
                     <td>{{ $template->price }}</td>
-                    <td>
-                        <a href="{{ route('admin.course-templates.edit', $template->id) }}" class="btn btn-sm btn-primary">編輯</a>
-                        <form action="{{ route('admin.course-templates.destroy', $template->id) }}" method="POST" class="d-inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('確定要刪除嗎？');">刪除</button>
-                        </form>
+                    <td> {{-- 換成這個版本 --}}
+                        @can('update', $template)
+                            <a href="{{ route('admin.course-templates.edit', $template->id) }}" class="btn btn-sm btn-primary">編輯</a>
+                        @endcan
+                        
+                        @can('delete', $template)
+                            <form action="{{ route('admin.course-templates.destroy', $template->id) }}" method="POST" class="d-inline">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('確定要刪除嗎？');">刪除</button>
+                            </form>
+                        @endcan
                     </td>
                 </tr>
             @empty

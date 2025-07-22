@@ -9,7 +9,6 @@ use App\Models\School;
 use App\Models\User;
 use Illuminate\Http\Request;
 
-
 class CourseController extends Controller
 {
     /**
@@ -17,23 +16,21 @@ class CourseController extends Controller
      */
     public function index()
     {
-        //
+        // 加上權限檢查：使用者是否可以檢視課程列表
+        $this->authorize('viewAny', Course::class);
+        // ... 原本的邏輯 ...
     }
 
     public function create(Request $request)
     {
-        // 從網址參數中取得點擊的日期
+        // 加上權限檢查：使用者是否可以建立課程
+        $this->authorize('create', Course::class);
+
         $date = $request->query('date');
-
-        // 取得所有課程模板
         $templates = CourseTemplate::all();
-
-        // 取得所有角色為 'Teacher' 的使用者
         $teachers = User::whereHas('role', function ($query) {
             $query->where('name', 'Teacher');
         })->get();
-
-        // 取得所有校區
         $schools = School::all();
 
         return view('admin.courses.create', [
@@ -46,30 +43,32 @@ class CourseController extends Controller
 
     public function store(Request $request)
     {
-        // 1. 驗證表單資料
+        // 加上權限檢查：使用者是否可以建立課程
+        $this->authorize('create', Course::class);
+
         $validatedData = $request->validate([
             'template_id' => ['required', 'exists:course_templates,id'],
             'teacher_id' => ['required', 'exists:users,id'],
             'location_id' => ['required', 'exists:schools,id'],
             'date' => ['required', 'date'],
             'start_time' => ['required', 'date_format:H:i', 'after_or_equal:07:00', 'before_or_equal:22:00'],
-'end_time' => ['required', 'date_format:H:i', 'after:start_time', 'before_or_equal:22:00'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time', 'before_or_equal:22:00'],
         ]);
 
-        // 2. 建立新資料
         Course::create($validatedData);
 
-        // 3. 導回日曆頁，並帶一個成功訊息
         return redirect()->route('admin.calendar.index')
                          ->with('success', '課程已成功新增！');
     }
-    
+
     /**
      * 顯示指定的課程資料 (API for AJAX).
      */
     public function show(Course $course)
     {
-        // 為了讓編輯表單的下拉選單有資料，我們一併把模板、老師、校區清單都送回去
+        // 加上權限檢查：使用者是否可以檢視此特定課程
+        $this->authorize('view', $course);
+
         $templates = CourseTemplate::all();
         $teachers = User::whereHas('role', function ($query) {
             $query->where('name', 'Teacher');
@@ -77,11 +76,11 @@ class CourseController extends Controller
         $schools = School::all();
 
         return response()->json([
-            'success'       => true,
-            'course'        => $course,
-            'templates'     => $templates,
-            'teachers'      => $teachers,
-            'schools'       => $schools,
+            'success'     => true,
+            'course'      => $course,
+            'templates'   => $templates,
+            'teachers'    => $teachers,
+            'schools'     => $schools,
         ]);
     }
 
@@ -90,43 +89,46 @@ class CourseController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        // 一般來說 edit 頁面會需要載入課程資料，可以在這裡加上權限
+        $course = Course::findOrFail($id);
+        $this->authorize('update', $course);
+        // ... 顯示編輯畫面的邏輯 ...
     }
 
     public function update(Request $request, Course $course)
-{
-    // 驗證規則與 store 方法類似
-    $validatedData = $request->validate([
-        'template_id' => ['required', 'exists:course_templates,id'],
-        'teacher_id' => ['required', 'exists:users,id'],
-        'location_id' => ['required', 'exists:schools,id'],
-        'date' => ['required', 'date'],
-        'start_time' => ['required', 'date_format:H:i', 'after_or_equal:07:00', 'before_or_equal:22:00'],
-'end_time' => ['required', 'date_format:H:i', 'after:start_time', 'before_or_equal:22:00'],
-    ]);
+    {
+        // 加上權限檢查：使用者是否可以更新此特定課程
+        $this->authorize('update', $course);
 
-    $course->update($validatedData);
+        $validatedData = $request->validate([
+            'template_id' => ['required', 'exists:course_templates,id'],
+            'teacher_id' => ['required', 'exists:users,id'],
+            'location_id' => ['required', 'exists:schools,id'],
+            'date' => ['required', 'date'],
+            'start_time' => ['required', 'date_format:H:i', 'after_or_equal:07:00', 'before_or_equal:22:00'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time', 'before_or_equal:22:00'],
+        ]);
 
-    // 如果是 AJAX 請求，就回傳 JSON
-    if ($request->wantsJson()) {
-        return response()->json(['success' => true, 'message' => '課程已成功更新！']);
+        $course->update($validatedData);
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => '課程已成功更新！']);
+        }
+
+        return redirect()->route('admin.calendar.index')->with('success', '課程已成功更新！');
     }
-
-    // (備用) 如果是傳統表單提交，則重新導向
-    return redirect()->route('admin.calendar.index')->with('success', '課程已成功更新！');
-}
 
     public function destroy(Request $request, Course $course)
-{
-    $course->delete();
+    {
+        // 加上權限檢查：使用者是否可以刪除此特定課程
+        $this->authorize('delete', $course);
 
-    // 如果是 AJAX 請求，就回傳 JSON
-    if ($request->wantsJson()) {
-        return response()->json(['success' => true, 'message' => '課程已成功刪除！']);
+        $course->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => '課程已成功刪除！']);
+        }
+
+        return redirect()->route('admin.calendar.index')->with('success', '課程已成功刪除！');
     }
-
-    // (備用) 如果是傳統表單提交，則重新導向
-    return redirect()->route('admin.calendar.index')->with('success', '課程已成功刪除！');
-}
-
 }

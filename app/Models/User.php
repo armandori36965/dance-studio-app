@@ -9,25 +9,26 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $fillable = [
         'name',
         'email',
         'password',
-        'role_id', // <--- 在這裡加入
+        'role_id',
+        'school_id',
+        'permissions', // <-- 把這個加上去！
     ];
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -44,32 +45,31 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'array', // 將 permissions 欄位自動轉換為陣列
         ];
     }
 
     /**
-     * 取得此使用者 (老師) 的所有課程
-     */
-    public function courses()
-    {
-        return $this->hasMany(Course::class, 'teacher_id');
-    }
-
-     /**
-     * 取得此使用者對應的角色
+     * Get the role associated with the user.
      */
     public function role()
     {
         return $this->belongsTo(Role::class);
     }
 
-    // ... 在 User.php 檔案的 class User extends Authenticatable { ... } 內加入
+    /**
+     * Get the school associated with the user.
+     */
+    public function school()
+    {
+        return $this->belongsTo(School::class);
+    }
 
     /**
-     * 取得此使用者 (家長) 的所有學員小孩
+     * 檢查使用者是否擁有特定權限
      */
-    public function children()
+    public function hasPermissionTo(string $permission): bool
     {
-        return $this->hasMany(Student::class, 'parent_id');
+        return in_array($permission, $this->permissions ?? []);
     }
 }

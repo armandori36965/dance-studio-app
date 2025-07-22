@@ -23,11 +23,12 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
+
                     {{-- 2. 新增日曆課表連結 --}}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ route('admin.calendar.index') }}">日曆課表</a>
-                </li>
-                
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('admin.calendar.index') }}">日曆課表</a>
+                    </li>
+
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('admin.course-templates.index') }}">課程模板管理</a>
                     </li>
@@ -37,11 +38,25 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('admin.users.index') }}">使用者管理</a>
                     </li>
+                    
+                    <p></p>
+                    {{-- 2. 原本的登出按鈕 --}}
+                    <li class="nav-item">
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <a class="nav-link" href="{{ route('logout') }}"
+                                onclick="event.preventDefault();
+                                this.closest('form').submit();">
+                                ({{ Auth::user()->name }})登出
+                            </a>
+                        </form>
+                    </li>
+
                 </ul>
             </div>
         </div>
     </nav>
-    
+
     <main class="container mt-4">
         @yield('content')
     </main>

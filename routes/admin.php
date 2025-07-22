@@ -26,8 +26,6 @@ Route::middleware(['auth', 'can:access-admin-panel'])->prefix('admin')->name('ad
     Route::resource('course-templates', CourseTemplateController::class);
     Route::resource('schools', SchoolController::class); 
     Route::resource('users', UserController::class);
-
-    Route::resource('users', UserController::class);
     Route::resource('courses', CourseController::class);
 
     });
