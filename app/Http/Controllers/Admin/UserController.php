@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -12,113 +12,125 @@ use Illuminate\Validation\Rule;
 class UserController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * 定義所有可用的額外權限及其顯示名稱。
+     * 設為 public static，方便在 Controller 內外重複使用。
+     */
+    public static $available_permissions = [
+        'manage_courses'          => '管理課程',
+        'manage_course_templates' => '管理課程模板',
+        'view_all_students'       => '查看所有學生',
+        'manage_finances'         => '管理財務報表',
+    ];
+
+    /**
+     * 顯示使用者列表頁面
      */
     public function index()
     {
-        $users = User::with('role')->latest()->paginate(10);
+        $this->authorize('viewAny', User::class); // 檢查是否有權限查看使用者列表
+
+        $users = User::with('role')->get();
         return view('admin.users.index', compact('users'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * 顯示建立新使用者的表單
      */
     public function create()
     {
+        $this->authorize('create', User::class); // 檢查是否有權限建立使用者
+
         $roles = Role::all();
         return view('admin.users.create', compact('roles'));
     }
 
     /**
-     * Store a newly created resource in storage.
+     * 將新建立的使用者儲存至資料庫
      */
     public function store(Request $request)
     {
-        $validatedData = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role_id' => ['required', 'exists:roles,id'],
+        $this->authorize('create', User::class); // 權限檢查
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'role_id' => 'required|exists:roles,id',
         ]);
 
         User::create([
-            'name' => $validatedData['name'],
-            'email' => $validatedData['email'],
-            'password' => Hash::make($validatedData['password']),
-            'role_id' => $validatedData['role_id'],
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role_id' => $request->role_id,
         ]);
 
         return redirect()->route('admin.users.index')->with('success', '使用者已成功建立！');
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(User $user)
-    {
-        return view('admin.users.show', compact('user'));
-    }
-
-    /**
-     * Show the form for editing the specified resource.
+     * 顯示編輯使用者的表單
      */
     public function edit(User $user)
     {
+        $this->authorize('update', $user); // 檢查是否有權限更新此使用者
+
         $roles = Role::all();
-        // 定義所有可用的額外權限
-        $available_permissions = [
-            'manage_courses' => '管理課程',
-             'manage_course_templates' => '管理課程模板',
-            'view_all_students' => '查看所有學生',
-            'manage_finances' => '管理財務報表',
-        ];
-        // 解碼使用者目前擁有的權限
-        $user_permissions = json_decode($user->permissions, true) ?? [];
+
+        // 因為 User Model 已設定 'permissions' => 'array' 的 $casts
+        // Laravel 會自動處理 JSON 轉換，我們可以直接當作陣列使用
+        $user_permissions = $user->permissions ?? [];
 
         return view('admin.users.edit', [
-            'user' => $user,
-            'roles' => $roles,
-            'available_permissions' => $available_permissions,
-            'user_permissions' => $user_permissions,
+            'user'                  => $user,
+            'roles'                 => $roles,
+            'available_permissions' => self::$available_permissions, // 使用 self:: 存取靜態屬性
+            'user_permissions'      => $user_permissions,
         ]);
     }
 
     /**
-     * Update the specified resource in storage.
+     * 更新資料庫中的使用者資訊
      */
     public function update(Request $request, User $user)
     {
-        $validatedData = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+        $this->authorize('update', $user); // 權限檢查
+
+        $request->validate([
+            'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-            'role_id' => ['required', 'exists:roles,id'],
-            'permissions' => ['nullable', 'array'], // 確保傳來的是陣列
+            'role_id' => 'required|exists:roles,id',
+            'permissions' => 'nullable|array', // 允許 permissions 為空或是一個陣列
         ]);
 
-        $updateData = [
-            'name' => $validatedData['name'],
-            'email' => $validatedData['email'],
-            'role_id' => $validatedData['role_id'],
-            // 將權限陣列轉換為 JSON 字串儲存
-            'permissions' => isset($validatedData['permissions']) ? json_encode($validatedData['permissions']) : null,
-        ];
+        $userData = $request->only('name', 'email', 'role_id');
 
-        if (!empty($validatedData['password'])) {
-            $updateData['password'] = Hash::make($validatedData['password']);
+        if ($request->filled('password')) {
+            $request->validate(['password' => 'string|min:8|confirmed']);
+            $userData['password'] = Hash::make($request->password);
         }
 
-        $user->update($updateData);
+        // 只有老師角色才處理 permissions 欄位
+        if ($request->role_id == Role::where('name', 'Teacher')->first()->id) {
+            $userData['permissions'] = $request->input('permissions', []);
+        } else {
+            $userData['permissions'] = null; // 如果不是老師，清空權限
+        }
 
-        return redirect()->route('admin.users.index')->with('success', '使用者資料已成功更新！');
+        $user->update($userData);
+
+        return redirect()->route('admin.users.index')->with('success', '使用者資訊已成功更新！');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * 從資料庫刪除使用者
      */
     public function destroy(User $user)
     {
+        $this->authorize('delete', $user); // 權限檢查
+
         $user->delete();
+
         return redirect()->route('admin.users.index')->with('success', '使用者已成功刪除！');
     }
 }

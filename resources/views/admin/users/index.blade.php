@@ -29,6 +29,7 @@
                 <th scope="col">名稱</th>
                 <th scope="col">Email</th>
                 <th scope="col">角色</th>
+                <th scope="col">額外權限</th> {{-- <-- 新增欄位 --}}
                 <th scope="col">操作</th>
             </tr>
         </thead>
@@ -39,6 +40,18 @@
                     <td>{{ $user->name }}</td>
                     <td>{{ $user->email }}</td>
                     <td>{{ $user->role->name }}</td>
+                    <td>
+                    {{-- 新增這段邏輯來顯示權限 --}}
+                    @if($user->role->name === 'Teacher' && !empty($user->permissions))
+                        @foreach($user->permissions as $permission)
+                            <span class="badge bg-info text-dark">
+                                {{ \App\Http\Controllers\Admin\UserController::$available_permissions[$permission] ?? $permission }}
+                            </span>
+                        @endforeach
+                    @else
+                        <span class="text-muted">無</span>
+                    @endif
+                </td>
                     <td>
     <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-sm btn-primary">編輯</a>
 

@@ -21,7 +21,7 @@ class CoursePolicy
     }
 
     /**
-     * 決定使用者是否可以檢視任何課程.
+     * 決定使用者是否可以檢視任何課程
      */
     public function viewAny(User $user): bool
     {
@@ -30,27 +30,26 @@ class CoursePolicy
     }
 
     /**
-     * 決定使用者是否可以檢視特定課程.
+     * 決定使用者是否可以檢視特定課程
      */
     public function view(User $user, Course $course): bool
     {
         // Admin, SchoolAdmin, Teacher 可以看
-        // 家長/學生 只能看自己孩子的課程 (這裡假設你有 student 和 course 的關聯)
         if (in_array($user->role->name, ['Admin', 'SchoolAdmin', 'Teacher'])) {
             return true;
         }
 
+        // 家長/學生 只能看自己孩子的課程
         if ($user->role->name === 'Parent') {
-            // 這裡需要你自己實作學生與課程的關聯邏輯
-            // return $user->children()->whereHas('courses', fn($q) => $q->where('id', $course->id))->exists();
-            return false; // 暫時先關閉
+            // 這部分邏輯需要根據你未來學生和課程的關聯來實作
+            return false; 
         }
 
         return false;
     }
 
     /**
-     * 決定使用者是否可以建立課程.
+     * 決定使用者是否可以建立課程
      */
     public function create(User $user): bool
     {
@@ -58,24 +57,17 @@ class CoursePolicy
         return in_array($user->role->name, ['Admin', 'SchoolAdmin']);
     }
 
-    /**
-     * 決定使用者是否可以更新課程.
-     */
-    public function update(User $user, Course $course): bool
-    {
-        // Admin 或 SchoolAdmin 可以更新
-        // 或是該課程的老師，並且有 "管理課程" 權限
-        if (in_array($user->role->name, ['Admin', 'SchoolAdmin'])) {
-            return true;
-        }
-
-        // 假設 users table 有一個 permissions json 欄位
-        $permissions = json_decode($user->permissions, true) ?? [];
-        return $user->id === $course->teacher_id && in_array('manage_courses', $permissions);
-    }
+    //**決定使用者是否可以更新課程
+ 
+public function update(User $user, Course $course): bool
+{
+    // 只有該課程的老師，並且被賦予 "管理課程" 的額外權限時，才能更新
+    // Admin 的權限已由 before() 方法處理，此處不需再判斷
+    return $user->id === $course->teacher_id && $user->hasPermissionTo('manage_courses');
+}
 
     /**
-     * 決定使用者是否可以刪除課程.
+     * 決定使用者是否可以刪除課程
      */
     public function delete(User $user, Course $course): bool
     {

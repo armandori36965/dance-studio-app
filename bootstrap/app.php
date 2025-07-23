@@ -13,6 +13,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         //
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
-        //
-    })->create();
+    ->withExceptions(function (Exceptions $exceptions) {
+
+    // 捕捉 Symfony 的 AccessDeniedHttpException
+    $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
+        return response()->view('errors.403_custom', [], 403);
+    });
+
+    // 也捕捉 Laravel 的 AuthorizationException (作為保險)
+    $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e) {
+        return response()->view('errors.403_custom', [], 403);
+    });
+
+})->create();

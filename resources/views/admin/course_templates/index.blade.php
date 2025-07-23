@@ -9,7 +9,7 @@
         <a href="{{ route('admin.course-templates.create') }}" class="btn btn-success">新增課程模板</a>
     </div>
 
-    @if(session('success'))
+    @if (session('success'))
         <div class="alert alert-success">
             {{ session('success') }}
         </div>
@@ -30,16 +30,21 @@
                     <th scope="row">{{ $template->id }}</th>
                     <td>{{ $template->name }}</td>
                     <td>{{ $template->price }}</td>
-                    <td> {{-- 換成這個版本 --}}
+                    <td>
+                        {{-- 只有具備 update 權限的使用者才看得到編輯按鈕 --}}
                         @can('update', $template)
-                            <a href="{{ route('admin.course-templates.edit', $template->id) }}" class="btn btn-sm btn-primary">編輯</a>
+                            <a href="{{ route('admin.course-templates.edit', $template->id) }}"
+                                class="btn btn-sm btn-primary">編輯</a>
                         @endcan
-                        
+
+                        {{-- 只有具備 delete 權限的使用者才看得到刪除按鈕 --}}
                         @can('delete', $template)
-                            <form action="{{ route('admin.course-templates.destroy', $template->id) }}" method="POST" class="d-inline">
+                            <form action="{{ route('admin.course-templates.destroy', $template->id) }}" method="POST"
+                                class="d-inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('確定要刪除嗎？');">刪除</button>
+                                <button type="submit" class="btn btn-sm btn-danger"
+                                    onclick="return confirm('確定要刪除嗎？');">刪除</button>
                             </form>
                         @endcan
                     </td>
